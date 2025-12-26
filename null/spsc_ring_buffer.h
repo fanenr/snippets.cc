@@ -1,9 +1,9 @@
 #ifndef SPSC_RING_BUFFER_H
 #define SPSC_RING_BUFFER_H
 
-#include <new>
 #include <atomic>
 #include <memory>
+#include <new>
 
 template <typename T, size_t Capacity>
 class spsc_ring_buffer

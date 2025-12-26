@@ -1,7 +1,7 @@
-#include <ctime>
-#include <memory>
-#include <iostream>
 #include <boost/asio.hpp>
+#include <ctime>
+#include <iostream>
+#include <memory>
 
 namespace sys = boost::system;
 namespace asio = boost::asio;
@@ -49,9 +49,8 @@ public:
     //     			  asio::placeholders::bytes_transferred));
     asio::async_write (m_socket, asio::buffer (m_message),
 		       [self = shared_from_this ()] (
-			   const sys::error_code &error, size_t wrote) {
-			 self->handle_write (error, wrote);
-		       });
+			   const sys::error_code &error, size_t wrote)
+			 { self->handle_write (error, wrote); });
   }
 
 private:
@@ -84,9 +83,8 @@ private:
     //     		     std::bind (&tcp_server::handle_accept, this,
     //     				asio::placeholders::error, conn));
     m_acceptor.async_accept (conn->socket (),
-			     [this, conn] (const sys::error_code &error) {
-			       this->handle_accept (error, conn);
-			     });
+			     [this, conn] (const sys::error_code &error)
+			       { this->handle_accept (error, conn); });
   }
 
   void

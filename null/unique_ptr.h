@@ -2,8 +2,8 @@
 #define UNIQUE_PTR_H
 
 #include <cstddef>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 template <typename T>
 class default_delete
@@ -55,8 +55,8 @@ public:
   {
   }
 
-  operator Deleter & () { return del_; }
-  operator const Deleter & () const { return del_; }
+  operator Deleter &() { return del_; }
+  operator const Deleter &() const { return del_; }
 
   void
   operator() (T *ptr)

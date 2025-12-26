@@ -109,13 +109,15 @@ main (int argc, char **argv)
     }
 
   signal (SIGPIPE, SIG_IGN);
-  signal (SIGINT, [] (int signum) {
-    if (signum == SIGINT)
-      {
-	stop = true;
-	puts ("");
-      }
-  });
+  signal (SIGINT,
+	  [] (int signum)
+	    {
+	      if (signum == SIGINT)
+		{
+		  stop = true;
+		  puts ("");
+		}
+	    });
 
   connections = std::atoi (argv[1]);
   std::vector<std::thread> echo_thrds;
@@ -125,29 +127,30 @@ main (int argc, char **argv)
     {
       auto &io = ctxs[i];
       short port = 8080 + i;
-      echo_thrds.emplace_back ([&io, port] () {
-	try
-	  {
-	    int conns = connections / 10;
-	    conns += !!(connections % 10);
+      echo_thrds.emplace_back (
+	  [&io, port] ()
+	    {
+	      try
+		{
+		  int conns = connections / 10;
+		  conns += !!(connections % 10);
 
-	    for (int j = 0; j < conns; j++)
-	      {
-		auto sess = session::make (io);
-		auto go = [sess, port] (asio::yield_context yield) {
-		  sess->start (port, yield);
-		};
-		asio::spawn (io, std::allocator_arg, allocator, go,
-			     handle_spawn);
-	      }
+		  for (int j = 0; j < conns; j++)
+		    {
+		      auto sess = session::make (io);
+		      auto go = [sess, port] (asio::yield_context yield)
+			{ sess->start (port, yield); };
+		      asio::spawn (io, std::allocator_arg, allocator, go,
+				   handle_spawn);
+		    }
 
-	    io.run ();
-	  }
-	catch (const std::exception &e)
-	  {
-	    printf ("Exception: %s\n", e.what ());
-	  }
-      });
+		  io.run ();
+		}
+	      catch (const std::exception &e)
+		{
+		  printf ("Exception: %s\n", e.what ());
+		}
+	    });
     }
 
   std::thread monitor_thrd (monitor);
@@ -165,11 +168,12 @@ main (int argc, char **argv)
 void
 monitor ()
 {
-  auto print_line = [] () {
-    for (int i = 0; i < 75; i++)
-      putchar ('-');
-    puts ("");
-  };
+  auto print_line = [] ()
+    {
+      for (int i = 0; i < 75; i++)
+	putchar ('-');
+      puts ("");
+    };
 
   printf ("Target: 127.0.0.1:8080-8089 | Total Connections: %d\n",
 	  connections);

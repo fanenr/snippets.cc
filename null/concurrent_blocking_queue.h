@@ -1,12 +1,12 @@
 #ifndef CONCURRENT_BLOCKING_QUEUE_H
 #define CONCURRENT_BLOCKING_QUEUE_H
 
-#include <deque>
-#include <mutex>
-#include <limits>
-#include <utility>
-#include <optional>
 #include <condition_variable>
+#include <deque>
+#include <limits>
+#include <mutex>
+#include <optional>
+#include <utility>
 
 template <typename T>
 class concurrent_blocking_queue
@@ -30,8 +30,8 @@ public:
   push (U &&elem)
   {
     std::unique_lock<std::mutex> lock (mutex_);
-    not_full_cv_.wait (
-	lock, [this] { return queue_.size () < capacity_ || closed_; });
+    not_full_cv_.wait (lock, [this] ()
+			 { return queue_.size () < capacity_ || closed_; });
 
     if (closed_)
       return false;
@@ -47,9 +47,9 @@ public:
   try_push (U &&elem, const Duration &timeout)
   {
     std::unique_lock<std::mutex> lock (mutex_);
-    bool success = not_full_cv_.wait_for (lock, timeout, [this] {
-      return queue_.size () < capacity_ || closed_;
-    });
+    bool success = not_full_cv_.wait_for (
+	lock, timeout,
+	[this] () { return queue_.size () < capacity_ || closed_; });
 
     if (!success || closed_)
       return false;

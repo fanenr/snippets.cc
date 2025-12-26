@@ -1,6 +1,6 @@
-#include <iostream>
 #include <boost/asio.hpp>
 #include <functional>
+#include <iostream>
 
 namespace asio = boost::asio;
 

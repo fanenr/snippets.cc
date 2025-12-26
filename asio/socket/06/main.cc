@@ -1,7 +1,7 @@
-#include <ctime>
-#include <memory>
-#include <iostream>
 #include <boost/asio.hpp>
+#include <ctime>
+#include <iostream>
+#include <memory>
 
 namespace sys = boost::system;
 namespace asio = boost::asio;
@@ -38,9 +38,8 @@ public:
     //     	   asio::placeholders::bytes_transferred));
     m_socket.async_receive_from (
 	asio::buffer (m_buffer), m_endpoint,
-	[this] (const sys::error_code &error, size_t received) {
-	  this->handle_receive (error, received);
-	});
+	[this] (const sys::error_code &error, size_t received)
+	  { this->handle_receive (error, received); });
   }
 
   void
@@ -58,9 +57,8 @@ public:
 	// 	       asio::placeholders::bytes_transferred, message));
 	m_socket.async_send_to (
 	    asio::buffer (*message), m_endpoint,
-	    [this, message] (const sys::error_code &error, size_t sent) {
-	      this->handle_send (error, sent, message);
-	    });
+	    [this, message] (const sys::error_code &error, size_t sent)
+	      { this->handle_send (error, sent, message); });
       }
     start_receive ();
   }

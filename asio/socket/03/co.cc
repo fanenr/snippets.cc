@@ -1,6 +1,6 @@
 #include <ctime>
-#include <memory>
 #include <iostream>
+#include <memory>
 
 #include <boost/asio.hpp>
 #include <boost/asio/spawn.hpp>
@@ -32,11 +32,12 @@ public:
   void
   start (asio::any_io_executor ex)
   {
-    auto go = [this] (asio::yield_context yield) {
-      sys::error_code ec;
-      auto msg = make_daytime_string ();
-      asio::async_write (socket_, asio::buffer (msg), yield[ec]);
-    };
+    auto go = [this] (asio::yield_context yield)
+      {
+	sys::error_code ec;
+	auto msg = make_daytime_string ();
+	asio::async_write (socket_, asio::buffer (msg), yield[ec]);
+      };
 
     asio::spawn (ex, go, asio::detached);
   }
@@ -52,14 +53,15 @@ public:
   tcp_server (asio::io_context &io)
       : io_context_ (io), acceptor_ (io, tcp::endpoint (tcp::v4 (), 13))
   {
-    auto go = [this] (asio::yield_context yield) {
-      for (;;)
-	{
-	  auto conn = tcp_connection::make (io_context_);
-	  acceptor_.async_accept (conn->socket_, yield);
-	  conn->start (yield.get_executor ());
-	}
-    };
+    auto go = [this] (asio::yield_context yield)
+      {
+	for (;;)
+	  {
+	    auto conn = tcp_connection::make (io_context_);
+	    acceptor_.async_accept (conn->socket_, yield);
+	    conn->start (yield.get_executor ());
+	  }
+      };
 
     asio::spawn (io_context_, go, asio::detached);
   }

@@ -23,10 +23,11 @@ public:
 	return;
       }
 
-    auto handle_wait{ [this, cb] (const sys::error_code &error) {
-      if (!error)
-	start (cb);
-    } };
+    auto handle_wait = [this, cb] (const sys::error_code &error)
+      {
+	if (!error)
+	  start (cb);
+      };
 
     timer_.expires_at (deadline_);
     timer_.async_wait (handle_wait);
@@ -72,13 +73,14 @@ public:
   start (const tcp::endpoint &target)
   {
     auto self = shared_from_this ();
-    auto handle_connect{ [self] (const sys::error_code &error) {
-      if (error)
-	return;
-      self->receive_from_client ();
-      self->receive_from_server ();
-      self->start_watchdogs ();
-    } };
+    auto handle_connect = [self] (const sys::error_code &error)
+      {
+	if (error)
+	  return;
+	self->receive_from_client ();
+	self->receive_from_server ();
+	self->start_watchdogs ();
+      };
 
     server_.async_connect (target, handle_connect);
   }
@@ -97,14 +99,15 @@ private:
   receive_from_client ()
   {
     auto self = shared_from_this ();
-    auto handle_receive{ [self] (const sys::error_code &error, size_t bytes) {
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->send_to_server (bytes);
-    } };
+    auto handle_receive = [self] (const sys::error_code &error, size_t bytes)
+      {
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->send_to_server (bytes);
+      };
 
     client_.async_receive (asio::buffer (client_buffer_),
 			   asio::bind_executor (strand1_, handle_receive));
@@ -115,15 +118,15 @@ private:
   send_to_server (size_t bytes_to_send)
   {
     auto self = shared_from_this ();
-    auto handle_write{ [self] (const sys::error_code &error,
-			       size_t /*bytes*/) {
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->receive_from_client ();
-    } };
+    auto handle_write = [self] (const sys::error_code &error, size_t /*bytes*/)
+      {
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->receive_from_client ();
+      };
 
     asio::async_write (server_, asio::buffer (client_buffer_, bytes_to_send),
 		       asio::bind_executor (strand1_, handle_write));
@@ -134,14 +137,15 @@ private:
   receive_from_server ()
   {
     auto self = shared_from_this ();
-    auto handle_receive{ [self] (const sys::error_code &error, size_t bytes) {
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->send_to_client (bytes);
-    } };
+    auto handle_receive = [self] (const sys::error_code &error, size_t bytes)
+      {
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->send_to_client (bytes);
+      };
 
     server_.async_receive (asio::buffer (server_buffer_),
 			   asio::bind_executor (strand2_, handle_receive));
@@ -152,15 +156,15 @@ private:
   send_to_client (size_t bytes_to_send)
   {
     auto self = shared_from_this ();
-    auto handle_write{ [self] (const sys::error_code &error,
-			       size_t /*bytes*/) {
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->receive_from_server ();
-    } };
+    auto handle_write = [self] (const sys::error_code &error, size_t /*bytes*/)
+      {
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->receive_from_server ();
+      };
 
     asio::async_write (client_, asio::buffer (server_buffer_, bytes_to_send),
 		       asio::bind_executor (strand2_, handle_write));
@@ -215,16 +219,17 @@ private:
   void
   start ()
   {
-    auto handle_accept{ [this] (const sys::error_code &error,
-				tcp::socket sock) {
-      if (error)
-	return;
+    auto handle_accept
+	= [this] (const sys::error_code &error, tcp::socket sock)
+      {
+	if (error)
+	  return;
 
-      auto sess = session::make (std::move (sock));
-      sess->start (target_);
+	auto sess = session::make (std::move (sock));
+	sess->start (target_);
 
-      start ();
-    } };
+	start ();
+      };
 
     acceptor_.async_accept (handle_accept);
   }

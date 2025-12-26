@@ -1,7 +1,7 @@
 #include <stdexcept>
 
-#include <boost/throw_exception.hpp>
 #include <boost/core/verbose_terminate_handler.hpp>
+#include <boost/throw_exception.hpp>
 
 void
 foo (bool v)

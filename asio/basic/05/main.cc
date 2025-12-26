@@ -1,7 +1,7 @@
-#include <thread>
-#include <iostream>
-#include <functional>
 #include <boost/asio.hpp>
+#include <functional>
+#include <iostream>
+#include <thread>
 
 namespace asio = boost::asio;
 

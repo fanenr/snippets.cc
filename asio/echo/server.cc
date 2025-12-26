@@ -52,14 +52,15 @@ private:
   receive_with_watchdog ()
   {
     auto self = shared_from_this ();
-    auto handle_receive{ [self] (const sys::error_code &error, size_t bytes) {
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->send_with_watchdog (bytes);
-    } };
+    auto handle_receive = [self] (const sys::error_code &error, size_t bytes)
+      {
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->send_with_watchdog (bytes);
+      };
 
     socket_.async_receive (asio::buffer (buffer_),
 			   asio::bind_executor (strand_, handle_receive));
@@ -71,15 +72,15 @@ private:
   send_with_watchdog (size_t bytes_to_send)
   {
     auto self = shared_from_this ();
-    auto handle_write{ [self] (const sys::error_code &error,
-			       size_t /*bytes*/) {
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->receive_with_watchdog ();
-    } };
+    auto handle_write = [self] (const sys::error_code &error, size_t /*bytes*/)
+      {
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->receive_with_watchdog ();
+      };
 
     asio::async_write (socket_, asio::buffer (buffer_, bytes_to_send),
 		       asio::bind_executor (strand_, handle_write));
@@ -98,10 +99,11 @@ private:
       }
 
     auto self = shared_from_this ();
-    auto handle_wait{ [self] (const sys::error_code &error) {
-      if (!error)
-	self->start_watchdog ();
-    } };
+    auto handle_wait = [self] (const sys::error_code &error)
+      {
+	if (!error)
+	  self->start_watchdog ();
+      };
 
     timer_.expires_at (deadline_);
     timer_.async_wait (asio::bind_executor (strand_, handle_wait));
@@ -111,15 +113,16 @@ private:
   receive_with_timeout ()
   {
     auto self = shared_from_this ();
-    auto handle_receive{ [self] (const sys::error_code &error, size_t bytes) {
-      self->timer_.cancel ();
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->send_with_timeout (bytes);
-    } };
+    auto handle_receive = [self] (const sys::error_code &error, size_t bytes)
+      {
+	self->timer_.cancel ();
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->send_with_timeout (bytes);
+      };
 
     socket_.async_receive (asio::buffer (buffer_),
 			   asio::bind_executor (strand_, handle_receive));
@@ -131,16 +134,16 @@ private:
   send_with_timeout (size_t bytes_to_send)
   {
     auto self = shared_from_this ();
-    auto handle_write{ [self] (const sys::error_code &error,
-			       size_t /*bytes*/) {
-      self->timer_.cancel ();
-      if (error)
-	{
-	  self->stop ();
-	  return;
-	}
-      self->receive_with_timeout ();
-    } };
+    auto handle_write = [self] (const sys::error_code &error, size_t /*bytes*/)
+      {
+	self->timer_.cancel ();
+	if (error)
+	  {
+	    self->stop ();
+	    return;
+	  }
+	self->receive_with_timeout ();
+      };
 
     asio::async_write (socket_, asio::buffer (buffer_, bytes_to_send),
 		       asio::bind_executor (strand_, handle_write));
@@ -152,10 +155,11 @@ private:
   start_timeout ()
   {
     auto self = shared_from_this ();
-    auto handle_wait{ [self] (const sys::error_code &error) {
-      if (!error)
-	self->stop ();
-    } };
+    auto handle_wait = [self] (const sys::error_code &error)
+      {
+	if (!error)
+	  self->stop ();
+      };
 
     timer_.expires_after (timeout_);
     timer_.async_wait (asio::bind_executor (strand_, handle_wait));
@@ -187,16 +191,17 @@ public:
   void
   start ()
   {
-    auto handle_accept{ [this] (const sys::error_code &error,
-				tcp::socket sock) {
-      if (error)
-	return;
+    auto handle_accept
+	= [this] (const sys::error_code &error, tcp::socket sock)
+      {
+	if (error)
+	  return;
 
-      auto sess = session::make (std::move (sock));
-      sess->start (false);
+	auto sess = session::make (std::move (sock));
+	sess->start (false);
 
-      start ();
-    } };
+	start ();
+      };
 
     acceptor_.async_accept (handle_accept);
   }
@@ -225,16 +230,18 @@ main ()
       unsigned int num_threads = std::thread::hardware_concurrency ();
       num_threads = num_threads ? num_threads * 2 : 10;
       for (unsigned int i = 0; i < num_threads; i++)
-	threads.emplace_back ([&io_context] () {
-	  try
-	    {
-	      io_context.run ();
-	    }
-	  catch (const std::exception &e)
-	    {
-	      std::printf ("exception: %s\n", e.what ());
-	    }
-	});
+	threads.emplace_back (
+	    [&io_context] ()
+	      {
+		try
+		  {
+		    io_context.run ();
+		  }
+		catch (const std::exception &e)
+		  {
+		    std::printf ("exception: %s\n", e.what ());
+		  }
+	      });
 
       io_context.run ();
       for (auto &thrd : threads)

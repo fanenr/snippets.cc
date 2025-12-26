@@ -3,8 +3,8 @@
 
 #include <atomic>
 #include <cstddef>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 template <typename T>
 class default_delete

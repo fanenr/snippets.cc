@@ -1,7 +1,6 @@
-#include <ctime>
-#include <memory>
-#include <iostream>
 #include <boost/asio.hpp>
+#include <ctime>
+#include <iostream>
 
 namespace sys = boost::system;
 namespace asio = boost::asio;
