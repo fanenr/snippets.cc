@@ -1,5 +1,6 @@
 ---
 BasedOnStyle: GNU
 BreakTemplateDeclarations: Yes
+SpaceAfterCStyleCast: true
 UseTab: Always
 ...
