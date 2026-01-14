@@ -1,6 +1,7 @@
 ---
 BasedOnStyle: GNU
 BreakTemplateDeclarations: Yes
+FixNamespaceComments: true
 SpaceAfterCStyleCast: true
 UseTab: Always
 ...

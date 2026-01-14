@@ -5,191 +5,183 @@
 #include <type_traits>
 #include <utility>
 
-template <typename T>
+template <class T>
 class default_delete
 {
 public:
   static_assert (sizeof (T) > 0, "Cannot delete an incomplete type.");
 
-  default_delete () noexcept = default;
+  constexpr default_delete () noexcept = default;
 
-  template <typename Y, typename = typename std::enable_if<
-			    std::is_convertible<Y *, T *>::value>::type>
-  default_delete (const default_delete<Y> &) noexcept
+  template <class U,
+	    typename std::enable_if<std::is_convertible<U *, T *>::value>::type
+		* = nullptr>
+  constexpr default_delete (const default_delete<U> &) noexcept
   {
   }
 
   void
-  operator() (T *ptr) const
+  operator() (T *p) const
   {
-    delete ptr;
+    delete p;
   }
 };
 
-template <typename T, typename Deleter,
-	  typename
-	  = decltype (std::declval<Deleter> () (static_cast<T *> (0)))>
+template <class T, class Deleter>
 class delete_wrapper
 {
-  template <typename Y, typename D, typename>
+  template <class, class>
   friend class delete_wrapper;
 
 public:
-  delete_wrapper (Deleter del) : del_ (std::move (del)) {}
-
-  template <typename Y, typename D,
-	    typename = typename std::enable_if<
-		std::is_convertible<Y *, T *>::value
-		&& std::is_convertible<D, Deleter>::value>::type>
-  delete_wrapper (const delete_wrapper<Y, D> &other) noexcept
-      : del_ (other.del_)
+  template <
+      decltype (std::declval<Deleter> () (static_cast<T *> (0))) * = nullptr>
+  constexpr delete_wrapper (Deleter del) : d_{ del }
   {
   }
 
-  template <typename Y, typename D,
-	    typename = typename std::enable_if<
+  template <class Y, class D,
+	    typename std::enable_if<
 		std::is_convertible<Y *, T *>::value
-		&& std::is_convertible<D, Deleter>::value>::type>
-  delete_wrapper (delete_wrapper<Y, D> &&other) noexcept
-      : del_ (std::move (other.del_))
+		&& std::is_convertible<D, Deleter>::value>::type * = nullptr>
+  constexpr delete_wrapper (const delete_wrapper<Y, D> &other) noexcept
+      : d_{ other.d_ }
   {
   }
 
-  operator Deleter &() { return del_; }
-  operator const Deleter &() const { return del_; }
+  operator Deleter &() { return d_; }
+  operator const Deleter &() const { return d_; }
 
   void
   operator() (T *ptr)
   {
-    del_ (ptr);
+    d_ (ptr);
   }
 
 private:
-  Deleter del_;
+  Deleter d_;
 };
 
-template <typename T, typename Deleter,
-	  typename DeleterType =
-	      typename std::conditional<std::is_class<Deleter>::value, Deleter,
-					delete_wrapper<T, Deleter>>::type,
-	  typename
-	  = decltype (std::declval<DeleterType> () (static_cast<T *> (0)))>
-using unique_ptr_base = DeleterType;
+template <
+    class T, class D,
+    class Deleter = typename std::conditional<std::is_class<D>::value, D,
+					      delete_wrapper<T, D>>::type,
+    decltype (std::declval<Deleter> () (static_cast<T *> (0))) * = nullptr>
+using unique_ptr_base = Deleter;
 
-template <typename T, typename Deleter = default_delete<T>>
+template <class T, class Deleter = default_delete<T>>
 class unique_ptr : private unique_ptr_base<T, Deleter>
 {
-  template <typename Y, typename D>
+  template <class, class>
   friend class unique_ptr;
 
-  using base_type = unique_ptr_base<T, Deleter>;
+  typedef unique_ptr_base<T, Deleter> base_type;
 
 public:
-  using pointer = T *;
-  using element_type = T;
-  using deleter_type = Deleter;
+  typedef T *pointer;
+  typedef T element_type;
+  typedef Deleter deleter_type;
 
-  unique_ptr () noexcept : base_type (), ptr_ () {}
-  unique_ptr (std::nullptr_t) noexcept : base_type (), ptr_ () {}
+  unique_ptr () noexcept : base_type{}, p_{} {}
+  unique_ptr (std::nullptr_t) noexcept : unique_ptr{} {}
 
-  explicit unique_ptr (pointer ptr) : base_type (), ptr_ (ptr) {}
-  unique_ptr (pointer ptr, deleter_type del)
-      : base_type (std::move (del)), ptr_ (ptr)
+  explicit unique_ptr (pointer p) : base_type{}, p_{ p } {}
+  unique_ptr (pointer p, deleter_type d) : base_type{ std::move (d) }, p_{ p }
   {
   }
 
   ~unique_ptr ()
   {
-    if (ptr_)
-      static_cast<base_type &> (*this) (ptr_);
+    if (p_)
+      (*this) (p_);
   }
 
   unique_ptr (const unique_ptr &) = delete;
   unique_ptr &operator= (const unique_ptr &) = delete;
 
   unique_ptr (unique_ptr &&other) noexcept
-      : base_type (std::move (other)), ptr_ (other.ptr_)
+      : base_type{ std::move (other) }, p_ (other.p_)
   {
-    other.ptr_ = {};
+    other.p_ = nullptr;
   }
 
   unique_ptr &
   operator= (unique_ptr &&other) noexcept
   {
-    unique_ptr (std::move (other)).swap (*this);
-    return *this;
+    return assign (std::move (other));
   }
 
-  template <typename Y, typename D,
-	    typename = typename std::enable_if<
-		std::is_convertible<typename unique_ptr<Y, D>::pointer,
-				    pointer>::value
-		&& std::is_convertible<typename unique_ptr<Y, D>::deleter_type,
-				       deleter_type>::value>::type>
-  unique_ptr (unique_ptr<Y, D> &&other) noexcept
-      : base_type (std::move (other)), ptr_ (other.ptr_)
+  template <class U, class E,
+	    typename std::enable_if<
+		std::is_convertible<U *, T *>::value
+		&& std::is_convertible<E, Deleter>::value>::type * = nullptr>
+  unique_ptr (unique_ptr<U, E> &&other) noexcept
+      : base_type{ std::move (other) }, p_{ other.p_ }
 
   {
-    other.ptr_ = {};
+    other.p_ = nullptr;
   }
 
-  template <typename Y, typename D,
-	    typename = typename std::enable_if<
-		std::is_convertible<typename unique_ptr<Y, D>::pointer,
-				    pointer>::value
-		&& std::is_convertible<typename unique_ptr<Y, D>::deleter_type,
-				       deleter_type>::value>::type>
+  template <class U, class E,
+	    typename std::enable_if<
+		std::is_convertible<U *, T *>::value
+		&& std::is_convertible<E, Deleter>::value>::type * = nullptr>
   unique_ptr &
-  operator= (unique_ptr<Y, D> &&other) noexcept
+  operator= (unique_ptr<U, E> &&other) noexcept
   {
-    unique_ptr (std::move (other)).swap (*this);
-    return *this;
+    return assign (std::move (other));
   }
 
-  void
-  swap (unique_ptr &other) noexcept
+  unique_ptr &
+  operator= (std::nullptr_t) noexcept
+  {
+    return assign (nullptr);
+  }
+
+  friend void
+  swap (unique_ptr &a, unique_ptr &b) noexcept
   {
     using std::swap;
-    swap (static_cast<base_type &> (*this), static_cast<base_type &> (other));
-    swap (ptr_, other.ptr_);
+    swap (static_cast<base_type &> (a), static_cast<base_type &> (b));
+    swap (a.p_, b.p_);
   }
 
   element_type &
-  operator* () const
+  operator* () const noexcept (noexcept (*get ()))
   {
-    return *ptr_;
+    return *p_;
   }
 
   pointer
   operator->() const noexcept
   {
-    return ptr_;
+    return p_;
   }
 
   explicit
   operator bool () const noexcept
   {
-    return ptr_;
+    return p_;
   }
 
   pointer
   get () const noexcept
   {
-    return ptr_;
+    return p_;
   }
 
   void
-  reset (pointer ptr = {}) noexcept
+  reset (pointer p = nullptr) noexcept
   {
-    unique_ptr (ptr).swap (*this);
+    assign (unique_ptr{ p });
   }
 
   pointer
   release () noexcept
   {
-    pointer ptr = ptr_;
-    ptr_ = {};
-    return ptr;
+    pointer p = p_;
+    p_ = nullptr;
+    return p;
   }
 
   deleter_type &
@@ -205,7 +197,16 @@ public:
   }
 
 private:
-  pointer ptr_;
+  unique_ptr &
+  assign (unique_ptr t) noexcept
+  {
+    using std::swap;
+    swap (*this, t);
+    return *this;
+  }
+
+private:
+  pointer p_;
 };
 
 #endif // UNIQUE_PTR_H
