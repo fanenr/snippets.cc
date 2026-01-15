@@ -3,123 +3,113 @@
 
 #include "shared_ptr.h"
 
-template <typename T>
+template <class T>
 class weak_ptr
 {
-  template <typename U>
+  template <class>
   friend class weak_ptr;
 
-  template <typename U>
+  template <class>
   friend class shared_ptr;
 
 public:
-  using element_type = T;
+  typedef T *pointer;
+  typedef T element_type;
 
-  weak_ptr (std::nullptr_t = nullptr) : ptr_ (nullptr), cb_ (nullptr) {}
-
-  template <typename U>
-  weak_ptr (const shared_ptr<U> &sp) noexcept : ptr_ (sp.ptr_), cb_ (sp.cb_)
-  {
-    static_assert (std::is_convertible<U *, T *>::value,
-		   "U* must be convertible to T*");
-    if (cb_)
-      cb_->inc_weak_count ();
-  }
+  constexpr weak_ptr () : px_{}, pb_{} {}
 
   ~weak_ptr ()
   {
-    if (cb_)
-      cb_->dec_weak_count ();
+    if (pb_)
+      pb_->dec_weak_count ();
+  }
+
+  template <class U, enable_if<std::is_convertible<U *, T *>::value> = 0>
+  weak_ptr (const shared_ptr<U> &sp) noexcept : px_{ sp.px_ }, pb_{ sp.pb_ }
+  {
+    if (pb_)
+      pb_->inc_weak_count ();
+  }
+
+  template <class U, enable_if<std::is_convertible<U *, T *>::value> = 0>
+  weak_ptr &
+  operator= (const shared_ptr<U> &sp) noexcept
+  {
+    weak_ptr t{ sp };
+    swap (*this, t);
+    return *this;
   }
 
   weak_ptr (const weak_ptr &other) noexcept
-      : ptr_ (other.ptr_), cb_ (other.cb_)
+      : px_{ other.px_ }, pb_{ other.pb_ }
   {
-    if (cb_)
-      cb_->inc_weak_count ();
+    if (pb_)
+      pb_->inc_weak_count ();
   }
 
   weak_ptr &
   operator= (const weak_ptr &other) noexcept
   {
-    weak_ptr (other).swap (*this);
+    weak_ptr t{ other };
+    swap (*this, t);
     return *this;
   }
 
-  template <typename U>
+  template <class U, enable_if<std::is_convertible<U *, T *>::value> = 0>
   weak_ptr (const weak_ptr<U> &other) noexcept
-      : ptr_ (other.ptr_), cb_ (other.cb_)
+      : px_{ other.px_ }, pb_{ other.pb_ }
   {
-    static_assert (std::is_convertible<U *, T *>::value,
-		   "U* must be convertible to T*");
-    if (cb_)
-      cb_->inc_weak_count ();
+    if (pb_)
+      pb_->inc_weak_count ();
   }
 
-  template <typename U>
+  template <class U, enable_if<std::is_convertible<U *, T *>::value> = 0>
   weak_ptr &
   operator= (const weak_ptr<U> &other) noexcept
   {
-    weak_ptr (other).swap (*this);
+    weak_ptr t{ other };
+    swap (*this, t);
     return *this;
   }
 
-  template <typename U>
-  weak_ptr &
-  operator= (const shared_ptr<U> &sp) noexcept
+  weak_ptr (weak_ptr &&other) noexcept : px_{ other.px_ }, pb_{ other.pb_ }
   {
-    weak_ptr (sp).swap (*this);
-    return *this;
-  }
-
-  weak_ptr (weak_ptr &&other) noexcept
-      : ptr_ (std::exchange (other.ptr_, nullptr)),
-	cb_ (std::exchange (other.cb_, nullptr))
-  {
+    other.px_ = nullptr;
+    other.pb_ = nullptr;
   }
 
   weak_ptr &
   operator= (weak_ptr &&other) noexcept
   {
-    weak_ptr (std::move (other)).swap (*this);
+    weak_ptr t{ std::move (other) };
+    swap (*this, t);
     return *this;
   }
 
-  template <typename U>
-  weak_ptr (weak_ptr<U> &&other) noexcept
-      : ptr_ (std::exchange (other.ptr_, nullptr)),
-	cb_ (std::exchange (other.cb_, nullptr))
+  template <class U, enable_if<std::is_convertible<U *, T *>::value> = 0>
+  weak_ptr (weak_ptr<U> &&other) noexcept : px_{ other.px_ }, pb_{ other.pb_ }
   {
-    static_assert (std::is_convertible<U *, T *>::value,
-		   "U* must be convertible to T*");
+    other.px_ = nullptr;
+    other.pb_ = nullptr;
   }
 
-  template <typename U>
+  template <class U, enable_if<std::is_convertible<U *, T *>::value> = 0>
   weak_ptr &
   operator= (weak_ptr<U> &&other) noexcept
   {
-    static_assert (std::is_convertible<U *, T *>::value,
-		   "U* must be convertible to T*");
-    weak_ptr (std::move (other)).swap (*this);
+    weak_ptr t{ std::move (other) };
+    swap (*this, t);
     return *this;
-  }
-
-  void
-  swap (weak_ptr &other) noexcept
-  {
-    using std::swap;
-    swap (ptr_, other.ptr_);
-    swap (cb_, other.cb_);
   }
 
   shared_ptr<T>
   lock () noexcept
   {
-    if (cb_ && cb_->lock_use_count ())
+    if (pb_ && pb_->lock_use_count ())
       {
 	shared_ptr<T> sp;
-	sp.ptr_ = ptr_;
-	sp.cb_ = cb_;
+	sp.px_ = px_;
+	sp.pb_ = pb_;
 	return sp;
       }
     return {};
@@ -128,7 +118,8 @@ public:
   void
   reset () noexcept
   {
-    weak_ptr ().swap (*this);
+    weak_ptr t;
+    swap (*this, t);
   }
 
   bool
@@ -140,12 +131,20 @@ public:
   long
   use_count () const noexcept
   {
-    return cb_ ? cb_->use_count.load (std::memory_order_relaxed) : 0;
+    return pb_ ? pb_->use_count.load (std::memory_order_relaxed) : 0;
+  }
+
+  friend void
+  swap (weak_ptr &a, weak_ptr &b) noexcept
+  {
+    using std::swap;
+    swap (a.px_, b.px_);
+    swap (a.pb_, b.pb_);
   }
 
 private:
-  T *ptr_;
-  control_block_base *cb_;
+  pointer px_;
+  control_block_base *pb_;
 };
 
 #endif // WEAK_PTR_H
